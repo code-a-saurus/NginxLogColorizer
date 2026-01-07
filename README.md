@@ -2,9 +2,12 @@
 
 A fast, customizable Python script that colorizes nginx access logs with column-aligned output for easy visual scanning.
 
+**Works out-of-the-box with nginx's default "combined" log format!** No configuration changes needed.
+
 ## Features
 
-- **Column-aligned output** for vertical scanning of timestamps, hostnames, IPs, and status codes
+- **Auto-detects log format** - Works with nginx "combined" format (default) and custom formats
+- **Column-aligned output** for vertical scanning of timestamps, IPs, and status codes
 - **Color-coded HTTP status codes**
   - 200: Bright green
   - 301/302: Blue
@@ -12,7 +15,7 @@ A fast, customizable Python script that colorizes nginx access logs with column-
   - 403: Dark red
   - 404: Black-on-gray
   - 5xx: Black-on-red background
-- **Color-coded cache status** (HIT/MISS/BYPASS)
+- **Color-coded cache status** (when using custom format with cache headers)
 - **IP address highlighting**
   - Your IP: Bright yellow (`--my-ip`)
   - Author IPs: Dark green (`--author-ip`)
@@ -84,18 +87,34 @@ SPECIAL_PATH_PATTERNS = [
 HOSTNAME_WIDTH = 24  # Adjust to your longest hostname
 ```
 
-## Required nginx Log Format
+## Log Format Support
 
-This script expects the following custom nginx log format:
+### Default Format (No Configuration Required)
+
+The script works out-of-the-box with nginx's standard **combined** log format:
 
 ```nginx
-log_format custom '[$time_local] $server_name | $remote_addr | $status [$upstream_cache_status] ${scheme_if_http}$request | Ref: "$http_referer" UA: "$http_user_agent"';
+log_format combined '$remote_addr - $remote_user [$time_local] '
+                    '"$request" $status $body_bytes_sent '
+                    '"$http_referer" "$http_user_agent"';
 ```
 
-Add this to your `nginx.conf` and use it in your access log declaration:
+This is nginx's default format, so you can start using the colorizer immediately!
+
+### Optional: Custom Format with Cache Status
+
+For advanced features like cache status display and server name column, you can use this custom format:
 
 ```nginx
-access_log /var/log/nginx/access.log custom;
+log_format show_hosts '[$time_local] $server_name | $remote_addr | $status [$upstream_cache_status] ${scheme_if_http}$request | Ref: "$http_referer" UA: "$http_user_agent"';
+```
+
+> **Note:** This colorizer was originally designed to work with this custom `show_hosts` format, which provides additional visibility into cache performance and virtual host routing. Support for the standard "combined" format was added later to make the tool more accessible.
+
+Then enable it in your access log:
+
+```nginx
+access_log /var/log/nginx/access.log show_hosts;
 ```
 
 **Note:** For the `${scheme_if_http}` variable, add this to your `http` block:
@@ -106,6 +125,8 @@ map $scheme $scheme_if_http {
     default "";
 }
 ```
+
+The script automatically detects which format is being used.
 
 ## Requirements
 
