@@ -25,7 +25,7 @@
 # For more information, please refer to <http://unlicense.org/>
 
 """
-Colorize nginx logs with automatic format detection (v4.0).
+Colorize nginx logs with automatic format detection (v1.0).
 
 Supports both nginx "combined" format (default) and custom formats with cache status.
 
