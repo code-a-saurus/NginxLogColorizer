@@ -1,20 +1,23 @@
 # nginx Log Colorizer
 
-A fast, customizable Python script that colorizes nginx access logs with column-aligned output for easy visual scanning.
+A fast, customizable Python toolkit for viewing nginx access logs with color-coded output and no line wrapping.
 
-**Works out-of-the-box with nginx's default "combined" log format!** No configuration changes needed.
+**Two tools included:**
+1. **colorize-nginx-logs.py** - Colorizes and formats nginx logs (works out-of-the-box with nginx's default "combined" format!)
+2. **lognowrap.py** - Displays long lines without wrapping (horizontal scrolling with arrow keys)
 
 ## Features
 
+### colorize-nginx-logs.py
 - **Auto-detects log format** - Works with nginx "combined" format (default) and custom formats
 - **Column-aligned output** for vertical scanning of timestamps, IPs, and status codes
-- **Color-coded HTTP status codes**
+- **Color-coded HTTP status codes** (256-color for better terminal compatibility)
   - 200: Bright green
   - 301/302: Blue
   - 304: Medium green
   - 403: Dark red
-  - 404: Black-on-gray
-  - 5xx: Black-on-red background
+  - 404: Dark gray on light gray
+  - 5xx: Black on bright red background
 - **Color-coded cache status** (when using custom format with cache headers)
 - **IP address highlighting**
   - Your IP: Bright yellow (`--my-ip`)
@@ -26,32 +29,71 @@ A fast, customizable Python script that colorizes nginx access logs with column-
 - **IPv4/IPv6 filtering**
 - **Configurable output** (suppress referer/user-agent)
 
+### lognowrap.py
+- **No line wrapping** - Long lines scroll horizontally instead of wrapping
+- **Arrow key navigation** - Use left/right arrows to scroll through long lines
+- **Preserves ANSI codes** - All colors and formatting pass through unchanged
+- **Real-time streaming** - Displays logs as they arrive with no buffering
+- **Terminal resize handling** - Automatically adjusts viewport on window resize
+- **Universal tool** - Works with any ANSI-colored input, not just nginx logs
+
 ## Installation
 
-1. Download `colorize-nginx-logs.py`
-2. Make it executable:
+1. Download both scripts:
+   - `colorize-nginx-logs-distributable.py`
+   - `lognowrap.py`
+2. Make them executable:
    ```bash
-   chmod +x colorize-nginx-logs.py
+   chmod +x colorize-nginx-logs-distributable.py lognowrap.py
    ```
 3. Optionally move to your PATH:
    ```bash
-   sudo mv colorize-nginx-logs.py /usr/local/bin/colorize-nginx-logs
+   sudo mv colorize-nginx-logs-distributable.py /usr/local/bin/colorize-nginx-logs
+   sudo mv lognowrap.py /usr/local/bin/lognowrap
+   ```
+4. (Optional) Install wcwidth for better Unicode support in lognowrap:
+   ```bash
+   pip3 install wcwidth
    ```
 
 ## Usage
 
+### Basic Usage (colorizer only)
+
 ```bash
 # Tail live logs
-tail -f /var/log/nginx/access.log | ./colorize-nginx-logs.py
+tail -f /var/log/nginx/access.log | ./colorize-nginx-logs-distributable.py
 
 # Process existing logs
-cat /var/log/nginx/access.log | ./colorize-nginx-logs.py
+cat /var/log/nginx/access.log | ./colorize-nginx-logs-distributable.py
 
 # Show only IPv6 requests, suppress referer/UA
-tail -f /var/log/nginx/access.log | ./colorize-nginx-logs.py -6 -shortshort
+tail -f /var/log/nginx/access.log | ./colorize-nginx-logs-distributable.py -6 -shortshort
 
 # Highlight your IP and author IPs
-tail -f /var/log/nginx/access.log | ./colorize-nginx-logs.py -m 1.2.3.4 -a 5.6.7.8
+tail -f /var/log/nginx/access.log | ./colorize-nginx-logs-distributable.py -m 1.2.3.4 -a 5.6.7.8
+```
+
+### With lognowrap (recommended for long lines)
+
+```bash
+# Tail live logs without line wrapping
+tail -f /var/log/nginx/access.log | ./colorize-nginx-logs-distributable.py | ./lognowrap.py
+
+# View logs with horizontal scrolling (use arrow keys)
+cat /var/log/nginx/access.log | ./colorize-nginx-logs-distributable.py | ./lognowrap.py
+
+# Combine with filters
+tail -f /var/log/nginx/access.log | ./colorize-nginx-logs-distributable.py -6 -shortshort | ./lognowrap.py
+
+# If installed to PATH
+tail -f /var/log/nginx/access.log | colorize-nginx-logs | lognowrap
+```
+
+**lognowrap controls:**
+- `Left Arrow` - Scroll left
+- `Right Arrow` - Scroll right
+- `Ctrl+C` - Exit
 ```
 
 ## Options
@@ -130,16 +172,38 @@ The script automatically detects which format is being used.
 
 ## Requirements
 
+### colorize-nginx-logs-distributable.py
 - Python 3.6+
 - No external dependencies (uses only standard library)
 
+### lognowrap.py
+- Python 3.6+
+- Standard library only (required)
+- `wcwidth` library (optional, for better Unicode width detection)
+
 ## Performance
 
-The script is optimized for real-time log streaming:
+### colorize-nginx-logs-distributable.py
+The colorizer is optimized for real-time log streaming:
 - Compiled regex patterns for fast parsing
 - Lookup tables for color codes
 - Line buffering for immediate output
 - Efficient string formatting
+
+### lognowrap.py
+The display wrapper is designed for high-volume streaming:
+- Memory: O(terminal_height) - only stores visible screen lines
+- CPU: Minimal when idle, responsive during streaming
+- Latency: <100ms from input to display
+- Non-blocking I/O for smooth real-time updates
+
+## Why Two Tools?
+
+**Separation of concerns:** The colorizer focuses on parsing and formatting nginx logs. The display wrapper handles terminal rendering and navigation. This design:
+- Keeps each tool simple and maintainable
+- Allows lognowrap to work with any ANSI-colored input, not just nginx logs
+- Lets you use the colorizer standalone if you don't need horizontal scrolling
+- Follows the Unix philosophy: each tool does one thing well
 
 ## License
 
