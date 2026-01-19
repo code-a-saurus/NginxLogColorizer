@@ -104,33 +104,33 @@ IMAGE_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.ico')
 class Colors:
     RESET = '\033[0m'
 
-    # Text colors
+    # Text colors (all 256-color for consistency across terminals)
     DARK_GRAY = '\033[90m'             # Timestamp, Ref, UA
-    CYAN = '\033[36m'                  # IP address
+    CYAN = '\033[38;5;51m'             # IP address
     ORANGE = '\033[38;5;208m'          # Special server IPs
     DARK_ORANGE = '\033[38;5;94m'      # Special path patterns
-    BRIGHT_CYAN = '\033[96m'           # Server name
-    MAGENTA = '\033[35m'               # Pipe separators
+    BRIGHT_CYAN = '\033[38;5;87m'      # Server name
+    MAGENTA = '\033[38;5;201m'         # Pipe separators
     DARK_PURPLE = '\033[38;5;90m'      # Image requests (dark magenta)
-    RED = '\033[31m'                   # POST method
+    RED = '\033[38;5;196m'             # POST method
     GRAY = '\033[90m'                  # HEAD/other methods
-    BRIGHT_YELLOW = '\033[93m'         # User's own IP
+    BRIGHT_YELLOW = '\033[38;5;226m'   # User's own IP
     DARK_GREEN = '\033[38;5;028m'      # Post author IPs
 
-    # HTTP status code colors
-    STATUS_200 = '\033[92m'            # Bright green for 200 OK
+    # HTTP status code colors (256-color codes)
+    STATUS_200 = '\033[38;5;46m'       # Bright green for 200 OK
     STATUS_REDIRECT = '\033[38;5;039m' # Fun blue for 301, 302
     STATUS_304 = '\033[38;5;028m'      # Medium-bright green for 304 Not Modified
     STATUS_403 = '\033[38;5;124m'      # Dark red for 403 Forbidden
-    STATUS_404 = '\033[30;47m'         # Black-on-gray for 404 Not Found
-    STATUS_5XX = '\033[30;101m'        # Black-on-red 5xx Server Errors
-    STATUS_OTHER = '\033[1;37m'        # Bold white for all else
+    STATUS_404 = '\033[38;5;240;48;5;250m'  # Dark gray text on light gray background for 404 Not Found
+    STATUS_5XX = '\033[38;5;232;48;5;196m'  # Black text on bright red background for 5xx Server Errors
+    STATUS_OTHER = '\033[38;5;255m'    # Bright white for all else
 
-    # Cache status colors
-    CACHE_HIT = '\033[32m'             # Green for HIT
+    # Cache status colors (256-color codes)
+    CACHE_HIT = '\033[38;5;40m'        # Green for HIT
     CACHE_BYPASS = '\033[33m'          # Yellow for BYPASS
-    CACHE_MISS = '\033[34m'            # Blue for MISS
-    CACHE_NONE = '\033[90m'            # Gray for - (no cache status provided)
+    CACHE_MISS = '\033[38;5;39m'       # Blue for MISS
+    CACHE_NONE = '\033[38;5;240m'      # Gray for - (no cache status provided)
 
 # Fast lookup tables for status/cache colors
 STATUS_COLOR_MAP = {
