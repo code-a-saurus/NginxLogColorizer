@@ -197,6 +197,15 @@ def render(lines, term_width, term_height, xoff, first=False):
     out.flush()
 
 
+def render_incremental(line, term_width, xoff):
+    out = sys.stdout
+    out.write(ESC + "[0m")
+    out.write(ESC + "[2K")
+    out.write(slice_ansi(line, xoff, term_width))
+    out.write("\r\n")
+    out.flush()
+
+
 def parse_keys(buf):
     actions = []
     i = 0
@@ -312,11 +321,42 @@ def main():
 
     term_width, term_height = get_term_size()
     lines = collections.deque(maxlen=term_height)
+    widths = collections.deque(maxlen=term_height)
+    max_width = 0
+    max_width_dirty = False
     xoff = 0
     inbuf = b""
     keybuf = b""
-    dirty = True
+    full_redraw = True
+    needs_redraw = True
     first = True
+
+    def ensure_max_width():
+        nonlocal max_width_dirty, max_width
+        if max_width_dirty:
+            max_width = max(widths, default=0)
+            max_width_dirty = False
+        return max_width
+
+    def clamp_xoff():
+        nonlocal xoff
+        max_xoff = max(0, ensure_max_width() - term_width)
+        if xoff > max_xoff:
+            xoff = max_xoff
+            return True
+        return False
+
+    def append_line(text):
+        nonlocal max_width, max_width_dirty
+        dropped_width = widths[0] if widths.maxlen and len(widths) == widths.maxlen else None
+        line_width = visible_width(text)
+        lines.append(text)
+        widths.append(line_width)
+        if dropped_width is not None and dropped_width == max_width:
+            max_width_dirty = True
+        if line_width > max_width:
+            max_width = line_width
+        return line_width
 
     try:
         with TtyMode(tty_fd):
@@ -324,10 +364,16 @@ def main():
                 if resize_flag:
                     resize_flag = False
                     term_width, term_height = get_term_size()
-                    lines = collections.deque(lines, maxlen=term_height)
-                    dirty = True
-
-                events = sel.select(timeout=0.1)
+                    lines = collections.deque(list(lines)[-term_height:], maxlen=term_height)
+                    widths = collections.deque(list(widths)[-term_height:], maxlen=term_height)
+                    max_width_dirty = True
+                    full_redraw = True
+                    needs_redraw = True
+                timeout = 0 if needs_redraw else None
+                try:
+                    events = sel.select(timeout)
+                except InterruptedError:
+                    events = []
                 for key, _ in events:
                     if key.data == "stdin":
                         while True:
@@ -338,14 +384,22 @@ def main():
                             if not chunk:
                                 if inbuf:
                                     line = inbuf.rstrip(b"\r")
-                                    lines.append(line.decode("utf-8", "replace"))
+                                    text = line.decode("utf-8", "replace")
+                                    append_line(text)
                                     inbuf = b""
-                                    dirty = True
-                                if dirty:
-                                    max_width = max((visible_width(l) for l in lines), default=0)
-                                    max_xoff = max(0, max_width - term_width)
-                                    xoff = min(xoff, max_xoff)
+                                    if clamp_xoff():
+                                        full_redraw = True
+                                        needs_redraw = True
+                                    if full_redraw:
+                                        needs_redraw = True
+                                    else:
+                                        render_incremental(text, term_width, xoff)
+                                if needs_redraw:
+                                    clamp_xoff()
                                     render(list(lines), term_width, term_height, xoff, first=first)
+                                    first = False
+                                    full_redraw = False
+                                    needs_redraw = False
                                 return 0
                             inbuf += chunk
                             while len(inbuf) > MAX_LINE_BYTES:
@@ -354,19 +408,31 @@ def main():
                                 if newline != -1:
                                     for raw in prefix[:newline].split(b"\n"):
                                         line = raw.rstrip(b"\r")
-                                        lines.append(line.decode("utf-8", "replace"))
+                                        text = line.decode("utf-8", "replace")
+                                        append_line(text)
                                     inbuf = inbuf[newline + 1:]
-                                    dirty = True
+                                    needs_redraw = True
+                                    full_redraw = True
                                 else:
                                     line = prefix.rstrip(b"\r")
-                                    lines.append(line.decode("utf-8", "replace"))
+                                    text = line.decode("utf-8", "replace")
+                                    append_line(text)
                                     inbuf = inbuf[MAX_LINE_BYTES:]
-                                    dirty = True
+                                    needs_redraw = True
+                                    full_redraw = True
                             parts = inbuf.split(b"\n")
                             for raw in parts[:-1]:
                                 line = raw.rstrip(b"\r")
-                                lines.append(line.decode("utf-8", "replace"))
-                                dirty = True
+                                text = line.decode("utf-8", "replace")
+                                append_line(text)
+                                if full_redraw:
+                                    needs_redraw = True
+                                else:
+                                    if clamp_xoff():
+                                        full_redraw = True
+                                        needs_redraw = True
+                                    else:
+                                        render_incremental(text, term_width, xoff)
                             inbuf = parts[-1]
                     elif key.data == "tty":
                         try:
@@ -379,13 +445,17 @@ def main():
                         actions, keybuf = parse_keys(keybuf)
                         for action in actions:
                             if action == "left":
-                                xoff = max(0, xoff - 1)
-                                dirty = True
+                                new_xoff = max(0, xoff - 1)
+                                if new_xoff != xoff:
+                                    xoff = new_xoff
+                                    full_redraw = True
+                                    needs_redraw = True
                             elif action == "right":
-                                max_width = max((visible_width(l) for l in lines), default=0)
-                                max_xoff = max(0, max_width - term_width)
-                                xoff = min(xoff + 1, max_xoff)
-                                dirty = True
+                                max_xoff = max(0, ensure_max_width() - term_width)
+                                if xoff < max_xoff:
+                                    xoff += 1
+                                    full_redraw = True
+                                    needs_redraw = True
                             elif action == "quit":
                                 return 0
                     elif key.data == "signal":
@@ -395,13 +465,12 @@ def main():
                             pass
                         resize_flag = True
 
-                if dirty:
-                    max_width = max((visible_width(l) for l in lines), default=0)
-                    max_xoff = max(0, max_width - term_width)
-                    xoff = min(xoff, max_xoff)
+                if needs_redraw:
+                    clamp_xoff()
                     render(list(lines), term_width, term_height, xoff, first=first)
                     first = False
-                    dirty = False
+                    full_redraw = False
+                    needs_redraw = False
     except KeyboardInterrupt:
         return 0
     finally:
