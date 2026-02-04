@@ -94,7 +94,6 @@ tail -f /var/log/nginx/access.log | colorize-nginx-logs | lognowrap
 - `Left Arrow` - Scroll left
 - `Right Arrow` - Scroll right
 - `Ctrl+C` - Exit
-```
 
 ## Options
 
